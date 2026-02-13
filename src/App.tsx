@@ -10,9 +10,11 @@ function App() {
     decodedText,
     error: scanError,
     isScanning,
+    isCapturing,
     decodeFromFile,
     startCamera,
     stopCamera,
+    captureAndDecode,
     setDecodedText,
     setError: setScanError,
   } = useBarcodeScanner()
@@ -46,7 +48,7 @@ function App() {
           สแกนบาร์โค้ดบัตรเลือกตั้ง
         </h1>
         <p className="text-center text-slate-400 text-sm mb-6">
-          สแกนจากกล้อง หรือเลือกรูปจากอัลบั้ม
+          เปิดกล้องแล้วกดถ่ายหนึ่งรูป หรืออัปโหลดรูปจากอัลบั้ม
         </p>
 
         {/* กล้อง */}
@@ -66,7 +68,7 @@ function App() {
                   d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
                 />
               </svg>
-              <span className="text-sm">กดปุ่มด้านล่างเพื่อเปิดกล้อง</span>
+              <span className="text-sm">กดเปิดกล้อง แล้วกดถ่ายรูป หรืออัปโหลดรูปจากอัลบั้ม</span>
             </div>
           ) : null}
           <video
@@ -78,34 +80,45 @@ function App() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            type="button"
-            onClick={handleStartCamera}
-            disabled={isScanning}
-            className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-yellow-500 hover:bg-yellow-600 disabled:opacity-50 text-slate-900 font-medium transition"
-          >
-            {isScanning ? 'กำลังสแกน...' : 'เปิดกล้องสแกน'}
-          </button>
-          {isScanning && (
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium transition"
-            >
-              หยุด
-            </button>
+          {!isScanning ? (
+            <>
+              <button
+                type="button"
+                onClick={handleStartCamera}
+                className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-medium transition"
+              >
+                เปิดกล้อง
+              </button>
+              <label className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium text-center cursor-pointer transition">
+                อัปโหลดรูปจากอัลบั้ม
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </label>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={captureAndDecode}
+                disabled={isCapturing}
+                className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 text-slate-900 font-medium transition"
+              >
+                {isCapturing ? 'กำลังสแกน...' : 'ถ่ายรูป'}
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium transition"
+              >
+                ปิดกล้อง
+              </button>
+            </>
           )}
-          <label className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium text-center cursor-pointer transition">
-            เลือกจากอัลบั้ม
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </label>
         </div>
 
         {/* กรอกมือ */}
