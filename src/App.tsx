@@ -169,7 +169,7 @@ function App() {
             id="result"
             className="rounded-xl bg-red-500/20 border border-red-500/50 px-5 py-4 text-center"
           >
-            <span className="text-red-500 font-semibold text-lg">
+            <span className="text-green-500 font-bold text-[48px]">
               {resultBook}
             </span>
           </div>
