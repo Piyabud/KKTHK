@@ -1,20 +1,10 @@
-import { useRef } from 'react'
 import { useBarcodeScanner } from './hooks/useBarcodeScanner'
 import { getBallotBookId, validateBallotId } from './utils/ballot'
 
 function App() {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const {
     decodedText,
     error: scanError,
-    isScanning,
-    isCapturing,
-    decodeFromFile,
-    startCamera,
-    stopCamera,
-    captureAndDecode,
     setDecodedText,
     setError: setScanError,
   } = useBarcodeScanner()
@@ -30,17 +20,6 @@ function App() {
     if (v) setScanError(null)
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    await decodeFromFile(file)
-    e.target.value = ''
-  }
-
-  const handleStartCamera = () => {
-    if (videoRef.current) startCamera(videoRef.current)
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <div className="max-w-lg mx-auto">
@@ -48,77 +27,17 @@ function App() {
           สแกนบาร์โค้ดบัตรเลือกตั้ง
         </h1>
         <p className="text-center text-slate-400 text-sm mb-6">
-          เปิดกล้องแล้วกดถ่ายหนึ่งรูป หรืออัปโหลดรูปจากอัลบั้ม
+          กรอกเลขบัตรเลือกตั้งด้านล่างเพื่อคำนวณเล่มบัตร
         </p>
 
-        {/* กล้อง */}
-        <div className="rounded-xl overflow-hidden bg-black/40 border border-slate-600 mb-4 aspect-video flex items-center justify-center">
-          {!isScanning ? (
-            <div className="flex flex-col items-center gap-3 text-slate-400">
-              <svg
-                className="w-16 h-16"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                />
-              </svg>
-              <span className="text-sm">กดเปิดกล้อง แล้วกดถ่ายรูป หรืออัปโหลดรูปจากอัลบั้ม</span>
-            </div>
-          ) : null}
-          <video
-            ref={videoRef}
-            className={`w-full h-full object-cover ${!isScanning ? 'hidden' : ''}`}
-            muted
-            playsInline
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          {!isScanning ? (
-            <>
-              <button
-                type="button"
-                onClick={handleStartCamera}
-                className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-medium transition"
-              >
-                เปิดกล้อง
-              </button>
-              <label className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium text-center cursor-pointer transition">
-                อัปโหลดรูปจากอัลบั้ม
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={captureAndDecode}
-                disabled={isCapturing}
-                className="flex-1 min-w-[140px] py-3 px-4 rounded-lg bg-green-500 hover:bg-green-600 disabled:opacity-50 text-slate-900 font-medium transition"
-              >
-                {isCapturing ? 'กำลังสแกน...' : 'ถ่ายรูป'}
-              </button>
-              <button
-                type="button"
-                onClick={stopCamera}
-                className="py-3 px-4 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-medium transition"
-              >
-                ปิดกล้อง
-              </button>
-            </>
-          )}
+        {/* กล้อง + อัปโหลด: Coming soon */}
+        <div className="rounded-xl border border-slate-600 bg-slate-800/40 mb-6 py-12 flex flex-col items-center justify-center gap-2">
+          <span className="text-2xl font-semibold text-slate-400 tracking-widest">
+            Coming soon
+          </span>
+          <span className="text-slate-500 text-sm">
+            สแกนบาร์โค้ดและอัปโหลดรูปจะเปิดให้ใช้เร็วๆ นี้
+          </span>
         </div>
 
         {/* กรอกมือ */}
