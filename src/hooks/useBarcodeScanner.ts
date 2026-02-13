@@ -1,21 +1,39 @@
 import { useCallback, useRef, useState } from 'react'
-import { BrowserMultiFormatReader, DecodeHintType } from '@zxing/library'
+import Quagga from '@ericblade/quagga2'
 
-/** สร้าง reader ที่ตั้งค่าให้สแกนบาร์โค้ดได้ดีขึ้น (TRY_HARDER = ความละเอียดสูงขึ้น) */
-function createReader() {
-  const hints = new Map()
-  hints.set(DecodeHintType.TRY_HARDER, true)
-  return new BrowserMultiFormatReader(hints)
+/** คอนฟิกสำหรับสแกนบาร์โค้ด 1D (บัตรเลือกตั้ง) - ใช้หลาย reader เพื่อความครอบคลุม */
+function getDecodeConfig(src: string): Parameters<typeof Quagga.decodeSingle>[0] {
+  return {
+    src,
+    decoder: {
+      readers: [
+        'code_128_reader',
+        'code_39_reader',
+        'ean_reader',
+        'ean_8_reader',
+        'upc_reader',
+        'upc_e_reader',
+        'codabar_reader',
+        'i2of5_reader',
+        '2of5_reader',
+        'code_93_reader',
+      ],
+    },
+    locate: true,
+    inputStream: { size: 1200 },
+  }
+}
+
+async function decodeImage(src: string): Promise<string> {
+  const result = await Quagga.decodeSingle(getDecodeConfig(src))
+  if (result?.codeResult?.code) {
+    return result.codeResult.code
+  }
+  throw new Error('ไม่พบบาร์โค้ดในรูป')
 }
 
 function toFriendlyError(message: string): string {
-  if (
-    message.includes('No MultiFormat Readers') ||
-    message.includes('detect the code')
-  ) {
-    return 'ไม่พบบาร์โค้ดในรูป ลองจัดให้บาร์โค้ดชัดเจนหรือใช้รูปจากอัลบั้ม'
-  }
-  return message || 'ไม่พบบาร์โค้ดในรูป'
+  return message || 'ไม่พบบาร์โค้ดในรูป ลองจัดให้บาร์โค้ดชัดเจนหรือใช้รูปจากอัลบั้ม'
 }
 
 export function useBarcodeScanner() {
@@ -23,48 +41,34 @@ export function useBarcodeScanner() {
   const [error, setError] = useState<string | null>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-
-  const getReader = useCallback(() => {
-    if (!readerRef.current) {
-      readerRef.current = createReader()
-    }
-    return readerRef.current
-  }, [])
 
   /** สแกนจากไฟล์รูป (อัลบั้ม) */
-  const decodeFromFile = useCallback(
-    async (file: File) => {
-      setError(null)
-      setDecodedText(null)
-      const url = URL.createObjectURL(file)
-      try {
-        const reader = getReader()
-        const result = await reader.decodeFromImageUrl(url)
-        const text = result.getText()
-        setDecodedText(text)
-        return text
-      } catch (e) {
-        const message = e instanceof Error ? e.message : 'ไม่พบบาร์โค้ดในรูป'
-        setError(toFriendlyError(message))
-        return null
-      } finally {
-        URL.revokeObjectURL(url)
-      }
-    },
-    [getReader]
-  )
+  const decodeFromFile = useCallback(async (file: File) => {
+    setError(null)
+    setDecodedText(null)
+    const url = URL.createObjectURL(file)
+    try {
+      const text = await decodeImage(url)
+      setDecodedText(text)
+      return text
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'ไม่พบบาร์โค้ดในรูป'
+      setError(toFriendlyError(message))
+      return null
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  }, [])
 
   /** หยุดกล้อง */
-  const stopCamera = useCallback(() => {
+  const stopCamera = useCallback(async () => {
     setIsScanning(false)
     setIsCapturing(false)
-    readerRef.current?.reset()
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
+    try {
+      await Quagga.CameraAccess.release()
+    } catch {
+      // ignore
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -72,19 +76,16 @@ export function useBarcodeScanner() {
     }
   }, [])
 
-  /** เปิดกล้องแบบพรีวิว (ไม่สแกนต่อเนื่อง) */
+  /** เปิดกล้องแบบพรีวิว */
   const startCamera = useCallback(
     async (videoElement: HTMLVideoElement) => {
       setError(null)
       setDecodedText(null)
       videoRef.current = videoElement
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
+        await Quagga.CameraAccess.request(videoElement, {
+          facingMode: 'environment',
         })
-        streamRef.current = stream
-        videoElement.srcObject = stream
-        await videoElement.play()
         setIsScanning(true)
       } catch (e) {
         const message =
@@ -95,39 +96,36 @@ export function useBarcodeScanner() {
     []
   )
 
-  /** ถ่ายหนึ่งรูปจากกล้องแล้วสแกนบาร์โค้ด (ขยาย 2 เท่าเพื่อให้สแกนบาร์โค้ดได้ดีขึ้น) */
+  /** ถ่ายหนึ่งรูปจากกล้องแล้วสแกนบาร์โค้ด */
   const captureAndDecode = useCallback(async () => {
     const video = videoRef.current
-    if (!video || !streamRef.current || isCapturing) return
+    if (!video?.srcObject || isCapturing) return
     setIsCapturing(true)
     setError(null)
-    const scale = 2
+    const canvas = document.createElement('canvas')
     const w = video.videoWidth
     const h = video.videoHeight
-    const canvas = document.createElement('canvas')
-    canvas.width = w * scale
-    canvas.height = h * scale
+    canvas.width = w
+    canvas.height = h
     const ctx = canvas.getContext('2d')
     if (!ctx) {
       setIsCapturing(false)
       setError('ไม่สามารถถ่ายรูปได้')
       return
     }
-    ctx.drawImage(video, 0, 0, w, h, 0, 0, canvas.width, canvas.height)
-    const url = canvas.toDataURL('image/png')
+    ctx.drawImage(video, 0, 0)
+    const dataUrl = canvas.toDataURL('image/png')
     try {
-      const reader = getReader()
-      const result = await reader.decodeFromImageUrl(url)
-      const text = result.getText()
+      const text = await decodeImage(dataUrl)
       setDecodedText(text)
-      stopCamera()
+      await stopCamera()
     } catch (e) {
       const message = e instanceof Error ? e.message : 'ไม่พบบาร์โค้ดในรูป'
       setError(toFriendlyError(message))
     } finally {
       setIsCapturing(false)
     }
-  }, [getReader, stopCamera, isCapturing])
+  }, [stopCamera, isCapturing])
 
   return {
     decodedText,
